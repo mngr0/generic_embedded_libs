@@ -14,6 +14,9 @@ menu "GEL"
     config GEL_PAGE_MANAGER
         bool "Page manager"
 
+    config GEL_PACKET_MANAGER
+        bool "Packet manager"
+
     config GEL_PARAMETER
         bool "Parameter management"
 
