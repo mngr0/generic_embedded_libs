@@ -1,3 +1,31 @@
+
+/*
+
+Serialization library.
+
+This library is made to manage the transmission of data with variable size over a stream-like communication (UART).
+It defines a packet, described by length, checksum, protocol version, and start/end delimiters. 
+
+Start and End delimiters are made with repeated bytes. 
+Given a stream of packets, the delimiters are used to maintain the synchronization with the sender:
+if a byte is lost the packet is discarded (because of wrong checksum) and the consequent packet will be successfully recognized.
+Since a particular sequence is used in the delimiter it is not possible to use it in the data. 
+Hopefully this will not break any communication.
+
+Data structure has to be managed at a higher level, supposedly using protocols like json/protobuf/flatbuf, or similar.
+
+The underlying level is supposed to manage the device addresing.
+This library is developed while using a UART communication. So the network is supposed to be made of 2 devices.
+
+
+In the future will adapt this library to CAN, which will change the assumption:
+CAN already defines a packet, which has a maximum size of 64 Bytes.
+If it will not be enough this library will expand to consider framing of the packets.
+
+
+*/
+
+
 #ifndef SERIAL_LOGGER_FRAME_H_
 #define SERIAL_LOGGER_FRAME_H_
 
@@ -52,23 +80,25 @@ typedef struct {
 
 
 //receive data to send as parameter and send it as a valid packet
-//possible improvement: reduce 
-int send_data(uint8_t *data, size_t size);
+//possible improvement: frame the packet if size is greater than FRAME_MAX_PACKET_SIZE
+int packet_manager_send_data(uint8_t *data, size_t size);
 
 //serialization peripheral might not manage packetization, for example UART (CAN does).
 //if data is received partially, then it must be buffered in order to search for valid packets
-void add_to_ringbuffer(uint8_t *new_buf, int16_t length);
+void packet_manager_put(packet_ringbuffer_t *io_logger,uint8_t *new_buf, int16_t length);
+
 
 //searches in the ringbuffer for packets. It checks only for SOP and EOP
 //later checks, like protocol version, and checksum validity are left to the receive_frame
-//possible improvement: unify
-int16_t take_frame(uint8_t *frame_buf);
+//possible improvement: unify the 2 functions
+int16_t packet_manager_pop(packet_ringbuffer_t *io_logger,uint8_t *frame_buf);
+
 
 //checks for protocol version, and checksum validity.
 //it checks also that declared packet length and actual length are the same
-int8_t receive_frame(packet_received_t *reply, uint8_t *data, int length);
+int8_t packet_is_valid(packet_received_t *reply, uint8_t *data, int length);
 
-
+void packet_manager_init(packet_ringbuffer_t *io_logger);
 
 
 #endif

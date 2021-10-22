@@ -3,7 +3,7 @@
 #include <stdbool.h>
 
 //possible improvement: pointer
-packet_ringbuffer_t io_logger;
+//packet_ringbuffer_t io_logger;
 
 //calculate checksum of given data
 uint16_t logger_checksum(uint8_t *data, uint16_t length)
@@ -32,7 +32,7 @@ void parse_reply(packet_received_t *reply, uint8_t *logger_buffer)
 }
 
 
-int8_t receive_frame(packet_received_t *reply, uint8_t *data, int length)
+int8_t packet_is_valid(packet_received_t *reply, uint8_t *data, int length)
 {
     if (length >= HEADER_SIZE + 2)
     {
@@ -61,9 +61,10 @@ int8_t receive_frame(packet_received_t *reply, uint8_t *data, int length)
     return 0;
 }
 
+//localized memory to survive function invocation
 static uint8_t tmp_buffer_out[LOGGER_BUF_SIZE];
 
-int send_data(uint8_t *data, size_t size)
+int packet_manager_send_data(uint8_t *data, size_t size)
 {
     if(size > LOGGER_BUF_SIZE){
         //possible improvement: extend size up to 2^16  by framing data
@@ -89,31 +90,28 @@ int send_data(uint8_t *data, size_t size)
 
 
 
-void init_logger(){
-    io_logger.cnt_in_begin=0;
-    io_logger.cnt_in_end=0;
+void packet_manager_init(packet_ringbuffer_t *io_logger){
+    io_logger->cnt_in_begin=0;
+    io_logger->cnt_in_end=0;
 }
 
 //add to ringbuffer and take frame are made to work on the same thread.
 //possible improvement: use critical sections to allow multi-thread access
 
 
-void add_to_ringbuffer(uint8_t *new_buf, int16_t length)
+void packet_manager_put(packet_ringbuffer_t *io_logger, uint8_t *new_buf, int16_t length)
 {
     //CS BEGIN
     for (int i = 0; i < length; i++)
     {
-        io_logger.buffer_in[LOGGER_SUM_MOD(i, io_logger.cnt_in_end)] = new_buf[i];
+        io_logger->buffer_in[LOGGER_SUM_MOD(i, io_logger->cnt_in_end)] = new_buf[i];
     }
-    io_logger.cnt_in_end = LOGGER_SUM_MOD(io_logger.cnt_in_end , length);
+    io_logger->cnt_in_end = LOGGER_SUM_MOD(io_logger->cnt_in_end , length);
     //CS END
 }
 
-int16_t take_frame(uint8_t *frame_buf)
+int16_t packet_manager_pop(packet_ringbuffer_t *io_logger, uint8_t *frame_buf)
 {
-    // direct access to io_logger.buffer_in, from which it takes the packet
-    // packet detected stored in frame_buf
-
 
     //CS BEGIN
     //search for SOF, if not found cancel any data in the buffer.
@@ -122,13 +120,13 @@ int16_t take_frame(uint8_t *frame_buf)
     
     bool sof_found = false;
     bool eof_found = false;
-    int cnt = io_logger.cnt_in_begin;
+    int cnt = io_logger->cnt_in_begin;
     int cnt_sof = 0;
     int cnt_eof = 0;
     size_t frame_size = -1;
-    while ((LOGGER_SUM_MOD(cnt, 0) != io_logger.cnt_in_end) && (!sof_found))
+    while ((LOGGER_SUM_MOD(cnt, 0) != io_logger->cnt_in_end) && (!sof_found))
     {
-        if ((io_logger.buffer_in[LOGGER_SUM_MOD(cnt, 0)] == START_OF_PACKET) && (io_logger.buffer_in[LOGGER_SUM_MOD(cnt, 1)] == START_OF_PACKET) && (io_logger.buffer_in[LOGGER_SUM_MOD(cnt, 2)] == START_OF_PACKET)  )
+        if ((io_logger->buffer_in[LOGGER_SUM_MOD(cnt, 0)] == START_OF_PACKET) && (io_logger->buffer_in[LOGGER_SUM_MOD(cnt, 1)] == START_OF_PACKET) && (io_logger->buffer_in[LOGGER_SUM_MOD(cnt, 2)] == START_OF_PACKET)  )
         {
             sof_found = true;
         }
@@ -136,16 +134,16 @@ int16_t take_frame(uint8_t *frame_buf)
         {
             cnt++;
             // INGORE ANYTHING BEFORE SOF
-            io_logger.cnt_in_begin++;
+            io_logger->cnt_in_begin++;
         }
     }
     cnt_sof = LOGGER_SUM_MOD(cnt, 0);
     
     // after SOF found, if there are still data ( == SOF found) search for EOF
     // TODO check for unexpected SOF 
-    while ((LOGGER_SUM_MOD(cnt, 0) != io_logger.cnt_in_end) && (!eof_found))
+    while ((LOGGER_SUM_MOD(cnt, 0) != io_logger->cnt_in_end) && (!eof_found))
     {
-        if ((io_logger.buffer_in[LOGGER_SUM_MOD(cnt, 0)] == END_OF_PACKET) && (io_logger.buffer_in[LOGGER_SUM_MOD(cnt, 1)] == END_OF_PACKET)&& (io_logger.buffer_in[LOGGER_SUM_MOD(cnt, 2)] == END_OF_PACKET)   )
+        if ((io_logger->buffer_in[LOGGER_SUM_MOD(cnt, 0)] == END_OF_PACKET) && (io_logger->buffer_in[LOGGER_SUM_MOD(cnt, 1)] == END_OF_PACKET)&& (io_logger->buffer_in[LOGGER_SUM_MOD(cnt, 2)] == END_OF_PACKET)   )
         {
             eof_found = true;
         }
@@ -160,9 +158,9 @@ int16_t take_frame(uint8_t *frame_buf)
         frame_size = LOGGER_SUM_MOD(cnt_eof, 0 - cnt_sof);
         for (int i = 0; i < frame_size; i++)
         {
-            frame_buf[i] = io_logger.buffer_in[LOGGER_SUM_MOD(i, cnt_sof)];
+            frame_buf[i] = io_logger->buffer_in[LOGGER_SUM_MOD(i, cnt_sof)];
         }
-        io_logger.cnt_in_begin = LOGGER_SUM_MOD(cnt_eof, 0);
+        io_logger->cnt_in_begin = LOGGER_SUM_MOD(cnt_eof, 0);
     }
     //CS END
 
