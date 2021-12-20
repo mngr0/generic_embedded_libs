@@ -65,7 +65,6 @@ typedef struct {
 	uint16_t frame_size;
 	uint8_t buffer[FRAME_MAX_PACKET_SIZE];
 	uint16_t checksum;
-	//RECEIVE_TIMESTAMP
 	uint8_t end_of_frame[DELIMITER_SIZE];
 
 }packet_received_t;
