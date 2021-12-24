@@ -73,9 +73,9 @@ typedef struct {
 	buffer[0]=START_OF_PACKET; \
 	buffer[1]=START_OF_PACKET; \
 	buffer[2]=START_OF_PACKET; \
-	buffer[HEADER_SIZE + size + 0]=END_OF_PACKET; \
-	buffer[HEADER_SIZE + size + 1]=END_OF_PACKET; \
-	buffer[HEADER_SIZE + size + 2]=END_OF_PACKET; \
+	buffer[HEADER_SIZE + size + FOOTER_SIZE -3]=END_OF_PACKET; \
+	buffer[HEADER_SIZE + size + FOOTER_SIZE -2]=END_OF_PACKET; \
+	buffer[HEADER_SIZE + size + FOOTER_SIZE -1]=END_OF_PACKET; 
 
 
 //receive data to send as parameter and send it as a valid packet
