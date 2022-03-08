@@ -75,7 +75,7 @@ int packet_manager_send_data(uint8_t *data, size_t size)
     tmp_buffer_out[DELIMITER_SIZE+1] = size & 0xff;
     tmp_buffer_out[DELIMITER_SIZE+2] = (size >> 8) & 0xff;
 
-    for (int i = 0; i < size; i++)
+    for (size_t i = 0; i < size; i++)
     {
         tmp_buffer_out[i + HEADER_SIZE] = data[i];
     }
@@ -84,7 +84,7 @@ int packet_manager_send_data(uint8_t *data, size_t size)
     tmp_buffer_out[HEADER_SIZE + size + 0] = chksum & 0xff;
     tmp_buffer_out[HEADER_SIZE + size + 1] = (chksum >> 8) & 0xff;
 
-    send_buffer( tmp_buffer_out, HEADER_SIZE + size + FOOTER_SIZE);
+    //send_buffer( tmp_buffer_out, HEADER_SIZE + size + FOOTER_SIZE);
     return 0;
 }
 
@@ -156,7 +156,7 @@ int16_t packet_manager_pop(packet_ringbuffer_t *io_logger, uint8_t *frame_buf)
     {
         cnt_eof = LOGGER_SUM_MOD(cnt, DELIMITER_SIZE);
         frame_size = LOGGER_SUM_MOD(cnt_eof, 0 - cnt_sof);
-        for (int i = 0; i < frame_size; i++)
+        for (size_t i = 0; i < frame_size; i++)
         {
             frame_buf[i] = io_logger->buffer_in[LOGGER_SUM_MOD(i, cnt_sof)];
         }
